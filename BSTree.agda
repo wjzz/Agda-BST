@@ -34,6 +34,14 @@ data In : {n : ℕ} → ℕ → (Tree ℕ n) → Set where
   in-elem   : {n m : ℕ} (a : ℕ) (l : Tree ℕ n) → (r : Tree ℕ m) → In a < l , a , r >
   in-below₁ : {n m : ℕ} (a : ℕ) (t : Tree ℕ n) (v : ℕ) (r : Tree ℕ m) (p : compare a v ≡ LT) (i : In a t) → In a < t , v , r >
   in-below₂ : {n m : ℕ} (a : ℕ) (t : Tree ℕ n) (v : ℕ) (l : Tree ℕ m) (p : compare a v ≡ GT) (i : In a t) → In a < l , v , t >
+
+-- some inversion lemmas
+in-inv₁ : ∀ {n m : ℕ} (a : ℕ) (l : Tree ℕ n) (v : ℕ) (r : Tree ℕ m) (c : compare a v ≡ LT) → ¬ In a < l , v , r > → ¬ In a l
+in-inv₁ a l v r c i i2 = i (in-below₁ a l v r c i2)
+
+in-inv₂ : ∀ {n m : ℕ} (a : ℕ) (l : Tree ℕ n) (v : ℕ) (r : Tree ℕ m) (c : compare a v ≡ GT) → ¬ In a < l , v , r > → ¬ In a r
+in-inv₂ a l v r c i i2 = i (in-below₂ a r v l c i2)
+
 {-
 lem-insert-existing : {n : ℕ} → (a : ℕ) → (t : Tree ℕ n) → In a t → insert a t ≡ inj₁ t 
 lem-insert-existing a .(< l , a , r >) (in-elem .a l r) with (lem-compare-refl a) 
@@ -122,3 +130,52 @@ member-dec < l , v , r > a (sorted-<> .v .l .r sl sr pl pr) | GT with-≡ eq | y
 member-dec < l , v , r > a (sorted-<> .v .l .r sl sr pl pr) | GT with-≡ eq | no ¬p = 
   no (lem-member-right l r a v (sorted-<> v l r sl sr pl pr) eq ¬p)
 member-dec < l , v , r > a (sorted-<> .v .l .r sl sr pl pr) | EQ with-≡ eq = yes (subst (λ x → In x < l , v , r >) (sym (lem-compare-eq eq)) (in-elem v l r))
+
+
+lem-not-in : ∀ {n : ℕ}(a : ℕ)(t : Tree ℕ n) → ¬ In a t → ((v : ℕ) → In v t → compare a v ≡ LT ⊎ compare a v ≡ GT)
+lem-not-in a t pi v i with inspect (compare a v)
+lem-not-in a t pi v i | LT with-≡ eq = inj₁ eq
+lem-not-in a t pi v i | GT with-≡ eq = inj₂ eq
+lem-not-in a .(< l , v , r >)  pi v (in-elem .v l r)          | EQ with-≡ eq rewrite lem-compare-eq {n = a} eq 
+  = ⊥-elim (pi (in-elem v l r))
+lem-not-in a .(< t , v' , r >) pi v (in-below₁ .v t v' r p i) | EQ with-≡ eq rewrite lem-compare-eq {n = a} eq 
+  = ⊥-elim (pi (in-below₁ v t v' r p i))
+lem-not-in a .(< l , v' , t >) pi v (in-below₂ .v t v' l p i) | EQ with-≡ eq rewrite lem-compare-eq {n = a} eq 
+  = ⊥-elim (pi (in-below₂ v t v' l p i))
+
+
+insert-not-in : {n : ℕ} → (a : ℕ) → (t : Tree ℕ n) → (i : ¬ In a t) → Tree ℕ (1 + n)
+insert-not-in a □ i = < □ , a , □ >
+insert-not-in a < l , v , r > i with lem-not-in a < l , v , r > i v (in-elem v l r)
+... | inj₁ a<v = < insert-not-in a l (in-inv₁ a l v r a<v i) , v , r >
+... | inj₂ a>v = subst (λ x → Tree ℕ (suc x)) (sym (lem-plus-s (size l) (size r))) < l , v , insert-not-in a r (in-inv₂ a l v r a>v i) >
+
+
+-- correctness of insert
+
+{-
+  in-below₁ : {n m : ℕ} (a : ℕ) (t : Tree ℕ n) (v : ℕ) (r : Tree ℕ m) (p : compare a v ≡ LT) (i : In a t) → In a < t , v , r >
+  in-below₂ : {n m : ℕ} (a : ℕ) (t : Tree ℕ n) (v : ℕ) (l : Tree ℕ m) (p : compare a v ≡ GT) (i : In a t) → In a < l , v , t >
+-}
+
+lem-insert3-inserts : ∀ {n : ℕ} (a : ℕ) (t : Tree ℕ n) (i : ¬ In a t) → In a (insert-not-in a t i)
+lem-insert3-inserts a □ i = in-elem a □ □
+lem-insert3-inserts a < l , v , r > i with inspect (lem-not-in a < l , v , r > i v (in-elem v l r)) | inspect (compare a v) 
+
+{- Contradictory cases -}
+lem-insert3-inserts a < l , v , r > i | inj₁ a<v with-≡ eq1 | EQ with-≡ eq 
+  = ⊥-elim (LT≠EQ (trans (sym a<v) eq))
+lem-insert3-inserts a < l , v , r > i | inj₁ a<v with-≡ eq1 | GT with-≡ eq 
+  = ⊥-elim (LT≠GT (trans (sym a<v) eq)) 
+lem-insert3-inserts a < l , v , r > i | inj₂ a>v with-≡ eq1 | LT with-≡ eq 
+  = ⊥-elim (LT≠GT (trans (sym eq) a>v))
+lem-insert3-inserts a < l , v , r > i | inj₂ a>v with-≡ eq1 | EQ with-≡ eq 
+  = ⊥-elim (GT≠EQ (trans (sym a>v) eq))
+
+{- Two main cases -}
+lem-insert3-inserts a < l , v , r > i | inj₁ a<v with-≡ eq1 | LT with-≡ eq = 
+  in-below₁ a (insert-not-in a l i2) v r eq (lem-insert3-inserts a l i2) where
+      i2 : ¬ In a l
+      i2 = in-inv₁ a l v r eq i
+    
+lem-insert3-inserts a < l , v , r > i | inj₂ a>v with-≡ eq1 | GT with-≡ eq = {!!}
