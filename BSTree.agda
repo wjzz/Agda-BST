@@ -162,6 +162,27 @@ lem-insert3-inserts : ∀ {n : ℕ} (a : ℕ) (t : Tree ℕ n) (i : ¬ In a t) �
 lem-insert3-inserts a □ i = in-elem a □ □
 lem-insert3-inserts a < l , v , r > i with inspect (lem-not-in a < l , v , r > i v (in-elem v l r)) | inspect (compare a v) 
 
+{- Two main cases -}
+lem-insert3-inserts a < l , v , r > i | inj₁ a<v with-≡ eq1 | LT with-≡ eq = 
+  in-below₁ a (insert-not-in a l i2) v r eq (lem-insert3-inserts a l i2) where
+      i2 : ¬ In a l
+      i2 = in-inv₁ a l v r eq i
+    
+lem-insert3-inserts a < l , v , r > i | inj₂ a>v with-≡ eq1 | GT with-≡ eq = 
+  {!!} where
+{- once again we have the |subst| trouble -}
+    i2 : ¬ In a r
+    i2 = in-inv₂ a l v r eq i
+  
+    rec : In a (insert-not-in a r i2)
+    rec = lem-insert3-inserts a r i2
+
+    t : Tree ℕ (suc (size l + suc (size r)))
+    t = < l , v , insert-not-in a r i2 >
+
+    hmm : In a (insert-not-in a t {!!})
+    hmm = {!!}
+
 {- Contradictory cases -}
 lem-insert3-inserts a < l , v , r > i | inj₁ a<v with-≡ eq1 | EQ with-≡ eq 
   = ⊥-elim (LT≠EQ (trans (sym a<v) eq))
@@ -171,11 +192,3 @@ lem-insert3-inserts a < l , v , r > i | inj₂ a>v with-≡ eq1 | LT with-≡ eq
   = ⊥-elim (LT≠GT (trans (sym eq) a>v))
 lem-insert3-inserts a < l , v , r > i | inj₂ a>v with-≡ eq1 | EQ with-≡ eq 
   = ⊥-elim (GT≠EQ (trans (sym a>v) eq))
-
-{- Two main cases -}
-lem-insert3-inserts a < l , v , r > i | inj₁ a<v with-≡ eq1 | LT with-≡ eq = 
-  in-below₁ a (insert-not-in a l i2) v r eq (lem-insert3-inserts a l i2) where
-      i2 : ¬ In a l
-      i2 = in-inv₁ a l v r eq i
-    
-lem-insert3-inserts a < l , v , r > i | inj₂ a>v with-≡ eq1 | GT with-≡ eq = {!!}
